@@ -52,21 +52,20 @@ AWebcameraPluginCharacter::AWebcameraPluginCharacter()
 	WebcameraTexture = NULL;
 }
 
-
-
+const int g_cameraToUse = 0;
 
 void AWebcameraPluginCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	WebcameraTexture = IWebcamera::Get().Connect(0);
+	WebcameraTexture = IWebcamera::Get().Connect(g_cameraToUse);
 }
 
 void AWebcameraPluginCharacter::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	IWebcamera::Get().Disconnect(0);
+	IWebcamera::Get().Disconnect(g_cameraToUse);
 }
 
 

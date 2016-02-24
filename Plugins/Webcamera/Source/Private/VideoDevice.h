@@ -35,6 +35,9 @@ private:
 
 	ISampleGrabber* Samplegrabber;
 
-	IFilterGraph2* Graph;
+	IFilterGraph2* m_Graph;
+	ICaptureGraphBuilder2* m_Capture;
+	IMediaControl* m_Control;
+
 	FVideoCallbackHandler* Callbackhandler;
 };

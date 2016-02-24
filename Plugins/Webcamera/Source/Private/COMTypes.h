@@ -9,6 +9,9 @@
 #include "AllowWindowsPlatformTypes.h" 
 #include <windows.h>
 #include <dshow.h>
+#include <wmistr.h>
+#include <evntrace.h>
+
 #include "HideWindowsPlatformTypes.h"
 
 interface ISampleGrabberCB : public IUnknown

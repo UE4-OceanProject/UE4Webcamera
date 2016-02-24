@@ -1,6 +1,5 @@
 // Copyright (C) 2016 Fredrik Lindh. All Rights Reserved.
 // Created by Fredrik Lindh (Temaran) on 2016-01-28
-
 #include "WebcameraPrivatePCH.h"
 
 #define LOCTEXT_NAMESPACE "FWebcameraModule"
@@ -30,9 +29,6 @@ int32 FWebcameraModule::ReacquireDevices()
 		delete[] Devices;
 	}
 
-	Graph = NULL;
-	Capture = NULL;
-	Control = NULL;
 	Devices = NULL;
 	Current = NULL;
 	NumDevices = 0;
@@ -40,12 +36,15 @@ int32 FWebcameraModule::ReacquireDevices()
 
 	Devices = new FVideoDevice[MAX_DEVICES];
 
-	InitializeGraph();
 	InitializeVideo();
 
 	// we have to use this construct, because other 
 	// filters may have been added to the graph
-	Control->Run();
+	for (int DeviceIndex = 0; DeviceIndex < NumDevices; DeviceIndex++)
+	{
+		//Devices[DeviceIndex].Run();
+	}
+
 	for (int DeviceIndex = 0; DeviceIndex < NumDevices; DeviceIndex++)
 	{
 		Devices[DeviceIndex].Stop();
@@ -82,36 +81,11 @@ FVideoDevice* FWebcameraModule::GetDevices()
 	return Devices;
 }
 
-void FWebcameraModule::InitializeGraph()
-{
-	HRESULT HResult;
-
-	HResult = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IFilterGraph2, (void**)&Graph);
-	if (HResult < 0)
-	{
-		throw HResult;
-	}
-
-	HResult = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&Capture);
-	if (HResult < 0)
-	{
-		throw HResult;
-	}
-
-	HResult = Graph->QueryInterface(IID_IMediaControl, (void**)&Control);
-	if (HResult < 0)
-	{
-		throw HResult;
-	}
-
-	Capture->SetFiltergraph(Graph);
-}
-
 void FWebcameraModule::InitializeVideo()
 {
 	HRESULT HResult;
 	VARIANT Name;
-	WCHAR FilterName[MAX_DEVICE_NAME + 2];
+	WCHAR FilterName[MAX_DEVICE_NAME + 3];
 
 	LONGLONG Start = 0;
 	LONGLONG Stop = MAXLONGLONG;
@@ -157,19 +131,48 @@ void FWebcameraModule::InitializeVideo()
 			if (HResult >= 0)
 			{
 				//Initialize the VideoDevice struct
-				FVideoDevice* VideoDevice = Devices + NumDevices++;
+				FVideoDevice* VideoDevice = &Devices[NumDevices];
+				NumDevices++;
 				BSTR StringPtr = Name.bstrVal;
 
-				for (int c = 0; *StringPtr; c++, StringPtr++)
+				//for (int c = 0; *StringPtr; c++, StringPtr++)
+				//{
+				//	//bit hacky, but i don't like to include ATL
+				//	VideoDevice->Filtername[c] = *StringPtr;
+				//	VideoDevice->Friendlyname[c] = *StringPtr & 0xFF;
+				//}
+
+				wsprintf(VideoDevice->Filtername, L"%s_%d", Name.bstrVal, NumDevices - 1);
+				//wsprintf(VideoDevice->Friendlyname, L"%s_%d", Name.bstrVal, NumDevices - 1);
+
+
+				HResult = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, IID_IFilterGraph2, (void**)&VideoDevice->m_Graph);
+				if (HResult < 0)
 				{
-					//bit hacky, but i don't like to include ATL
-					VideoDevice->Filtername[c] = *StringPtr;
-					VideoDevice->Friendlyname[c] = *StringPtr & 0xFF;
+					throw HResult;
 				}
 
+				HResult = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void**)&VideoDevice->m_Capture);
+				if (HResult < 0)
+				{
+					throw HResult;
+				}
+
+				HResult = VideoDevice->m_Graph->QueryInterface(IID_IMediaControl, (void**)&VideoDevice->m_Control);
+				if (HResult < 0)
+				{
+					throw HResult;
+				}
+
+				VideoDevice->m_Capture->SetFiltergraph(VideoDevice->m_Graph);
+
 				//add a filter for the device
-				HResult = Graph->AddSourceFilterForMoniker(Moniker, 0, VideoDevice->Filtername, &VideoDevice->Sourcefilter);
-				if (HResult != S_OK)
+				HResult = VideoDevice->m_Graph->AddSourceFilterForMoniker(Moniker, 0, VideoDevice->Filtername, &VideoDevice->Sourcefilter);
+				if (HResult == VFW_S_DUPLICATE_NAME)
+				{
+					throw HResult;
+				}
+				else if (HResult != S_OK)
 				{
 					throw HResult;
 				}
@@ -188,9 +191,12 @@ void FWebcameraModule::InitializeVideo()
 					throw HResult;
 				}
 
-				wcscpy_s(FilterName, MAX_DEVICE_NAME + 2, L"SG ");
-				wcscpy_s(FilterName + 3, MAX_DEVICE_NAME + 5, VideoDevice->Filtername);
-				Graph->AddFilter(VideoDevice->Samplegrabberfilter, FilterName);
+				wsprintf(FilterName, L"SG%s", VideoDevice->Filtername);
+				HResult = VideoDevice->m_Graph->AddFilter(VideoDevice->Samplegrabberfilter, FilterName);
+				if (HResult != S_OK)
+				{
+					throw HResult;
+				}
 
 				//set the media type
 				AM_MEDIA_TYPE MediaType;
@@ -215,6 +221,7 @@ void FWebcameraModule::InitializeVideo()
 					throw HResult;
 				}
 
+
 				//set the null renderer
 				HResult = CoCreateInstance(CLSID_NullRenderer, NULL, CLSCTX_INPROC_SERVER, IID_IBaseFilter, (void**)&VideoDevice->Nullrenderer);
 				if (HResult < 0)
@@ -224,21 +231,26 @@ void FWebcameraModule::InitializeVideo()
 
 				wcscpy_s(FilterName, MAX_DEVICE_NAME + 2, L"NR ");
 				wcscpy_s(FilterName + 3, MAX_DEVICE_NAME + 5, VideoDevice->Filtername);
-				Graph->AddFilter(VideoDevice->Nullrenderer, FilterName);
+				HResult = VideoDevice->m_Graph->AddFilter(VideoDevice->Nullrenderer, FilterName);
+				if (HResult < 0)
+				{
+					throw HResult;
+				}
 
 				//set the render path
 #ifdef SHOW_DEBUG_RENDERER
 				HResult = Capture->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, VideoDevice->Sourcefilter, VideoDevice->Samplegrabberfilter, NULL);
 #else
-				HResult = Capture->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, VideoDevice->Sourcefilter, VideoDevice->Samplegrabberfilter, VideoDevice->Nullrenderer);
+				HResult = VideoDevice->m_Capture->RenderStream(&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video, VideoDevice->Sourcefilter, VideoDevice->Samplegrabberfilter, VideoDevice->Nullrenderer);
 #endif
 				if (HResult < 0)
 				{
 					throw HResult;
 				}
 
+				
 				//if the stream is started, start capturing immediatly
-				HResult = Capture->ControlStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, VideoDevice->Sourcefilter, &Start, &Stop, 1, 2);
+				HResult = VideoDevice->m_Capture->ControlStream(&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video, VideoDevice->Sourcefilter, &Start, &Stop, 1, 2);
 				if (HResult < 0)
 				{
 					throw HResult;
@@ -261,7 +273,7 @@ void FWebcameraModule::InitializeVideo()
 				}
 
 				//reference the graph
-				VideoDevice->Graph = Graph;
+				//VideoDevice->m_Graph = m_Graph;
 				VideoDevice->Id = NumDevices;
 			}
 			VariantClear(&Name);

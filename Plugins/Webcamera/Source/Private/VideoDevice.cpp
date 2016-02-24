@@ -37,6 +37,8 @@ const char* FVideoDevice::GetFriendlyName()
 UTexture2D* FVideoDevice::Start()
 {
 	HRESULT HResult;
+	HResult = m_Control->Run();
+	if (HResult < 0) throw HResult;
 
 	HResult = Nullrenderer->Run(0);
 	if (HResult < 0) throw HResult;

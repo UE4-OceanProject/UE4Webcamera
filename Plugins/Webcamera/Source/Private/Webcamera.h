@@ -24,13 +24,9 @@ public:
 protected:
 	int32 ReacquireDevices();
 	class FVideoDevice* GetDevices();
-	void InitializeGraph();
 	void InitializeVideo();
 
 private:
-	IFilterGraph2* Graph;
-	ICaptureGraphBuilder2* Capture;
-	IMediaControl* Control;
 	FVideoDevice* Devices;
 	FVideoDevice* Current;
 
