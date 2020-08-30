@@ -1,0 +1,25 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "1.0",
+  "FriendlyName": "AnyCam",
+  "Description": "Adds web camera support",
+  "Category": "Other",
+  "CreatedBy": "Fredrik Lindh (Temaran)",
+  "CreatedByURL": "https://github.com/Temaran/UE4Webcamera",
+  "DocsURL": "https://github.com/Temaran/UE4Webcamera",
+  "MarketplaceURL": "",
+  "SupportURL": "https://github.com/Temaran/UE4Webcamera",
+  "CanContainContent": true,
+  "IsBetaVersion": false,
+  "IsExperimentalVersion": false,
+  "Installed": false,
+  "EnabledByDefault": true,
+  "Modules": [
+    {
+      "Name": "AnyCam",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ]
+}
