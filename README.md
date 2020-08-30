@@ -2,7 +2,9 @@ Updated from 4.10 to 4.24 by EvoPulseGaming
 UE4Webcamera
 ==================
 
-A plugin that lets you use your web camera in Unreal Engine 4! Currently implemented using DirectShow.
+A plugin that lets you use your web camera in Unreal Engine 4! 
+(Great for virtual cameras, like the kinect360 virtual camera, because unreal wont detect it otherwise)
+Currently implemented using DirectShow.
 
 How to use
 ==================
